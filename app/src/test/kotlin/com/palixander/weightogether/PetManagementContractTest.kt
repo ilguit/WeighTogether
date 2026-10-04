@@ -20,7 +20,7 @@ import org.junit.Test
 class PetManagementContractTest {
     private val today = LocalDate.of(2026, 8, 31)
     private val breedCatalog = PetBreedCatalog()
-    private val mixedDog = breedCatalog.search("Бигль", PetSpecies.DOG).single()
+    private val mixedDog = (breedCatalog.resolve(BreedId("scalesync:dog:mixed-breed"), PetSpecies.DOG) as PetBreedSelection.Available).option
 
     @Test
     fun openingCreateStartsFreshTypedSessionAndOpeningWhileBusyIsIgnored() {
@@ -74,10 +74,6 @@ class PetManagementContractTest {
         assertEquals(pet.breedId, opened.editor?.draft?.breed?.id)
         assertEquals(PetBirthDateInput.Year("2020"), opened.editor?.draft?.birthDate)
         assertEquals(pet.dogAdultWeightCategory, opened.editor?.draft?.dogAdultWeightCategory)
-        assertEquals(
-            AutomaticallyAssignedDogCategory(mixedDog.id, DogAdultWeightCategory.III),
-            opened.editor?.automaticallyAssignedDogCategory,
-        )
     }
 
     @Test

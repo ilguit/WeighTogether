@@ -131,7 +131,6 @@ class PetReferenceIntegrationTest {
                     referenceDate.minusDays(100).monthValue.toString(),
                     referenceDate.minusDays(100).dayOfMonth.toString(),
                 ),
-                dogAdultWeightCategory = DogAdultWeightCategory.II,
             ),
             today = referenceDate,
         )
@@ -139,6 +138,7 @@ class PetReferenceIntegrationTest {
         val birthDate = referenceDate.minusDays(100)
         val knownEntity = requireNotNull(validated.newPet).toPetEntity("known-pet", timestamp)
         assertEquals(stableBreedId, knownEntity.toDomain().breedId)
+        assertNull(knownEntity.toDomain().dogAdultWeightCategory)
         assertEquals(birthDate.year, knownEntity.birthYear)
         assertEquals(birthDate.monthValue, knownEntity.birthMonth)
         assertEquals(birthDate.dayOfMonth, knownEntity.birthDay)
@@ -160,13 +160,21 @@ class PetReferenceIntegrationTest {
         )
         val unknownEntity = unknownExisting.withUpdate(unknownUpdate, timestamp)
 
+        val genericEntity = NewPet(
+            displayName = "Метис",
+            species = PetSpecies.DOG,
+            sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(birthDate),
+            dogAdultWeightCategory = DogAdultWeightCategory.II,
+        ).toPetEntity("generic-pet", timestamp)
+
         val humanAccount = humanAccount()
         val humanMeasurement = humanMeasurement()
         val source = BackupDatabaseSnapshot(
             accounts = listOf(humanAccount),
             appState = AppStateEntity(primaryAccountId = humanAccount.id),
             measurements = listOf(humanMeasurement),
-            pets = listOf(knownEntity, unknownEntity),
+            pets = listOf(knownEntity, unknownEntity, genericEntity),
         )
         val output = ByteArrayOutputStream()
         val exported = BackupExportService(
@@ -194,8 +202,18 @@ class PetReferenceIntegrationTest {
         assertEquals(humanMeasurement, imported.measurements.single())
         val restoredKnown = imported.pets.single { it.id == knownEntity.id }
         val restoredUnknown = imported.pets.single { it.id == unknownEntity.id }
+        val restoredGeneric = imported.pets.single { it.id == genericEntity.id }
         assertEquals(knownEntity, restoredKnown)
         assertEquals(unknownEntity, restoredUnknown)
+        assertEquals(genericEntity, restoredGeneric)
+        assertNull(restoredKnown.toDomain().dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.II, restoredGeneric.toDomain().dogAdultWeightCategory)
+        assertTrue(
+            PetHistoryReferencePresenter().present(
+                restoredGeneric.toDomain(),
+                ChartDateRange(referenceDate, referenceDate.plusDays(2)),
+            ) is PetHistoryWeightReference.Available,
+        )
         assertEquals(birthDate.year, restoredKnown.birthYear)
         assertEquals(birthDate.monthValue, restoredKnown.birthMonth)
         assertEquals(birthDate.dayOfMonth, restoredKnown.birthDay)

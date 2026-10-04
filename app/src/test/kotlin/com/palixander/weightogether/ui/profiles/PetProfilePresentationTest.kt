@@ -58,7 +58,6 @@ class PetProfilePresentationTest {
                 R.string.pet_profile_breed,
                 R.string.pet_profile_birth_date,
                 R.string.pet_profile_age,
-                R.string.pet_profile_weight_category,
             ),
             summary.items.map { (it.label as UiText.Resource).id },
         )
@@ -66,7 +65,6 @@ class PetProfilePresentationTest {
         assertEquals(UiText.Raw("Лабрадор-ретривер"), summary.items[1].value)
         assertEquals(UiText.Raw("29.02.2020"), summary.items[2].value)
         assertEquals(UiText.Resource(R.string.pet_profile_age_exact, listOf(5L, UiText.Plural(R.plurals.pet_profile_age_years, 5))), summary.items[3].value)
-        assertEquals(UiText.Resource(R.string.dog_weight_iii), summary.items[4].value)
     }
 
     @Test
@@ -97,6 +95,17 @@ class PetProfilePresentationTest {
             UiText.Resource(R.string.pet_breed_unavailable, listOf("retired:cat:very-long-id")),
             summary.items.single().value,
         )
+    }
+
+    @Test
+    fun categorySummaryAppearsOnlyForDogsWithoutNamedBreeds() {
+        for (id in listOf(null, "scalesync:dog:breed-unknown", "scalesync:dog:mixed-breed", "VBO:0200800", "external:dog:rare")) {
+            for (species in listOf(PetSpecies.DOG, PetSpecies.CAT)) {
+                val summary = petProfileSummary(pet(species = species, breedId = id?.let(::BreedId), category = DogAdultWeightCategory.III.takeIf { species == PetSpecies.DOG }), catalog)
+                val shown = summary.items.any { it.label == UiText.Resource(R.string.pet_profile_weight_category) }
+                assertEquals(species == PetSpecies.DOG && (id == null || id.startsWith("scalesync:dog:")), shown)
+            }
+        }
     }
 
     private fun pet(

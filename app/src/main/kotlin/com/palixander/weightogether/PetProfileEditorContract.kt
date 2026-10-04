@@ -27,7 +27,6 @@ import com.palixander.weightogether.domain.PetSpecies
 import com.palixander.weightogether.domain.PetUpdate
 import com.palixander.weightogether.domain.normalizePetName
 import com.palixander.weightogether.domain.reference.DogAdultWeightCategory
-import com.palixander.weightogether.domain.reference.DogBreedAdultWeightCategoryMappings
 import com.palixander.weightogether.ui.text.UiText
 import com.palixander.weightogether.ui.text.uiText
 import java.time.DateTimeException
@@ -187,6 +186,9 @@ class PetBreedCatalog(
         locale: Locale = Locale.forLanguageTag("ru"),
     ): PetBreedSelection {
         val canonicalId = canonicalBreedId(id.value)
+        catalog.findById(canonicalId)
+            ?.takeIf { it.kind == BreedKind.UNKNOWN || it.kind == BreedKind.MIXED }
+            ?.let { return PetBreedSelection.Available(toPetBreedOption(it, locale)) }
         snapshot?.breed(canonicalId)?.let { return PetBreedSelection.Available(toPetBreedOption(it, locale)) }
         supportedCatBreeds.singleOrNull { it.id == canonicalId }
             ?.let { return PetBreedSelection.Available(toPetBreedOption(it, locale)) }
@@ -251,7 +253,12 @@ data class PetProfileDraft(
             sex = pet.sex,
             breed = pet.breedId?.let { breedCatalog.resolve(it, pet.species) },
             birthDate = PetBirthDateInput.from(pet.birthDate),
-            dogAdultWeightCategory = pet.dogAdultWeightCategory,
+            dogAdultWeightCategory = pet.dogAdultWeightCategory.takeIf {
+                isDogAdultWeightCategoryApplicable(
+                    pet.species,
+                    pet.breedId?.let { breedCatalog.resolve(it, pet.species) },
+                )
+            },
             photoPath = pet.photoPath,
             heightCm = pet.heightCm?.let { formatPetHeight(it, Locale.ROOT) }.orEmpty(),
         )
@@ -274,36 +281,14 @@ data class PendingPetSpeciesChange(
 data class PetProfileEditorState(
     val draft: PetProfileDraft,
     val pendingSpeciesChange: PendingPetSpeciesChange? = null,
-    /** Editor-session provenance only; persisted profiles keep the existing schema. */
-    val automaticallyAssignedDogCategory: AutomaticallyAssignedDogCategory? = null,
 ) {
     companion object {
         fun edit(
             pet: Pet,
             breedCatalog: PetBreedCatalog = PetBreedCatalog(),
-        ): PetProfileEditorState {
-            val draft = PetProfileDraft.edit(pet, breedCatalog)
-            val availableBreed = (draft.breed as? PetBreedSelection.Available)
-                ?.takeIf { draft.species == PetSpecies.DOG }
-            val mappedCategory = availableBreed?.let {
-                DogBreedAdultWeightCategoryMappings.find(it.id)?.category
-            }
-            val category = draft.dogAdultWeightCategory ?: mappedCategory
-            val automaticAssignment = mappedCategory
-                ?.takeIf { draft.dogAdultWeightCategory == null || draft.dogAdultWeightCategory == it }
-                ?.let { AutomaticallyAssignedDogCategory(requireNotNull(availableBreed).id, it) }
-            return PetProfileEditorState(
-                draft = draft.copy(dogAdultWeightCategory = category),
-                automaticallyAssignedDogCategory = automaticAssignment,
-            )
-        }
+        ): PetProfileEditorState = PetProfileEditorState(PetProfileDraft.edit(pet, breedCatalog))
     }
 }
-
-data class AutomaticallyAssignedDogCategory(
-    val breedId: BreedId,
-    val category: DogAdultWeightCategory,
-)
 
 sealed interface PetProfileAction {
     data class RestorePersisted(val state: PetProfileEditorState) : PetProfileAction
@@ -339,8 +324,6 @@ object PetProfileReducer {
                             .takeUnless { pending.clearDogAdultWeightCategory },
                     ),
                     pendingSpeciesChange = null,
-                    automaticallyAssignedDogCategory = state.automaticallyAssignedDogCategory
-                        .takeUnless { pending.clearBreed || pending.clearDogAdultWeightCategory },
                 )
                 PetProfileAction.CancelSpeciesChange -> state.copy(pendingSpeciesChange = null)
                 else -> state
@@ -399,21 +382,14 @@ object PetProfileReducer {
         breed: PetBreedSelection?,
     ): PetProfileEditorState {
         if (breed != null && breed.species != state.draft.species) return state
-        val mappedCategory = DogBreedAdultWeightCategoryMappings.find(breed?.id)?.category
-        val category = mappedCategory ?: state.draft.dogAdultWeightCategory
-            .takeUnless { state.automaticallyAssignedDogCategory != null }
-            .takeIf {
-                isDogAdultWeightCategoryApplicable(state.draft.species, breed)
-            }
-        val automaticAssignment = mappedCategory?.let {
-            AutomaticallyAssignedDogCategory(requireNotNull(breed).id, it)
+        val category = state.draft.dogAdultWeightCategory.takeIf {
+            isDogAdultWeightCategoryApplicable(state.draft.species, breed)
         }
         return state.copy(
             draft = state.draft.copy(
                 breed = breed,
                 dogAdultWeightCategory = category,
             ),
-            automaticallyAssignedDogCategory = automaticAssignment,
         )
     }
 
@@ -424,13 +400,11 @@ object PetProfileReducer {
         if (category == null) {
             return state.copy(
                 draft = state.draft.copy(dogAdultWeightCategory = null),
-                automaticallyAssignedDogCategory = null,
             )
         }
         if (!isDogAdultWeightCategoryApplicable(state.draft.species, state.draft.breed)) return state
         return state.copy(
             draft = state.draft.copy(dogAdultWeightCategory = category),
-            automaticallyAssignedDogCategory = null,
         )
     }
 
@@ -638,7 +612,12 @@ fun validatePetBirthDateInput(
 fun isDogAdultWeightCategoryApplicable(
     species: PetSpecies?,
     breed: PetBreedSelection?,
-): Boolean = species == PetSpecies.DOG
+): Boolean = species == PetSpecies.DOG && when (breed) {
+    null -> true
+    is PetBreedSelection.Available -> breed.option.kind == BreedKind.UNKNOWN ||
+        breed.option.kind == BreedKind.MIXED
+    is PetBreedSelection.Unavailable -> false
+}
 
 fun petSexLabel(sex: PetSex?): UiText = when (sex) {
     PetSex.MALE -> uiText(R.string.pet_sex_male)

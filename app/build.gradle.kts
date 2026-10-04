@@ -15,7 +15,7 @@ android {
         applicationId = "com.palixander.weightogether"
         minSdk = 26
         targetSdk = 36
-        versionCode = 273
+        versionCode = 274
         versionName = "0.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
