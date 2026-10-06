@@ -217,6 +217,8 @@ internal object SettingsScreenTestTags {
     const val AdditionalContent = "settings-additional-content"
     const val ManualTestWeight = "settings-manual-test-weight"
     const val ManualTestImpedance = "settings-manual-test-impedance"
+    const val PrivacyPolicyRow = "settings-privacy-policy-row"
+    const val PrivacyPolicyDivider = "settings-privacy-policy-divider"
     const val ChangelogRow = "settings-changelog-row"
     const val LanguageRow = "settings-language-row"
     const val LanguageDialog = "settings-language-dialog"
@@ -1069,6 +1071,8 @@ private fun SettingsRootScreen(
                         onDestinationChanged,
                         focusRequesters[SettingsDestination.DIAGNOSTICS],
                     )
+                    SettingsRootDivider(SettingsScreenTestTags.PrivacyPolicyDivider)
+                    PrivacyPolicySettingsRow()
                     SettingsRootDivider(SettingsScreenTestTags.ConnectionsSecondDivider)
                     SettingsGroupRow(
                         leadingIcon = ScaleSyncIcons.History,

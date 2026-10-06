@@ -559,4 +559,7 @@
     <string name="weighing_reminder_weigh">Wiegen</string>
     <string name="photo_view_open">Foto ansehen</string>
     <string name="photo_view_unavailable">Foto nicht verfügbar</string>
+    <string name="privacy_policy_title">Datenschutzerklärung</string>
+    <string name="privacy_policy_supporting">Datennutzung und Berechtigungen · auf Russisch</string>
+    <string name="privacy_policy_back">Zurück</string>
 </resources>
