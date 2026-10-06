@@ -113,4 +113,7 @@
     <string name="weighing_reminder_weigh">測定する</string>
     <string name="photo_view_open">写真を表示</string>
     <string name="photo_view_unavailable">写真を表示できません</string>
+    <string name="privacy_policy_title">プライバシーポリシー</string>
+    <string name="privacy_policy_supporting">データの使用と権限 · ロシア語</string>
+    <string name="privacy_policy_back">戻る</string>
 </resources>

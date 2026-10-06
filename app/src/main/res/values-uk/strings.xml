@@ -125,4 +125,7 @@
     <string name="weighing_reminder_weigh">Зважити</string>
     <string name="photo_view_open">Переглянути фото</string>
     <string name="photo_view_unavailable">Фото недоступне</string>
+    <string name="privacy_policy_title">Політика конфіденційності</string>
+    <string name="privacy_policy_supporting">Використання даних і дозволи · російською мовою</string>
+    <string name="privacy_policy_back">Назад</string>
 </resources>

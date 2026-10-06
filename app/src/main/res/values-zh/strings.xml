@@ -457,4 +457,7 @@
     <string name="weighing_reminder_weigh">称重</string>
     <string name="photo_view_open">查看照片</string>
     <string name="photo_view_unavailable">照片不可用</string>
+    <string name="privacy_policy_title">隐私政策</string>
+    <string name="privacy_policy_supporting">数据使用和权限 · 俄语</string>
+    <string name="privacy_policy_back">返回</string>
 </resources>
