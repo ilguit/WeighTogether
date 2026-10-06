@@ -460,4 +460,7 @@
     <string name="weighing_reminder_weigh">Weigh</string>
     <string name="photo_view_open">View photo</string>
     <string name="photo_view_unavailable">Photo unavailable</string>
+    <string name="privacy_policy_title">Privacy policy</string>
+    <string name="privacy_policy_supporting">Data use and permissions · in Russian</string>
+    <string name="privacy_policy_back">Back</string>
 </resources>

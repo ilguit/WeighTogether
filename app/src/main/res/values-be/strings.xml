@@ -377,4 +377,7 @@
     <string name="weighing_reminder_weigh">Узважыць</string>
     <string name="photo_view_open">Паглядзець фота</string>
     <string name="photo_view_unavailable">Фота недаступнае</string>
+    <string name="privacy_policy_title">Палітыка канфідэнцыяльнасці</string>
+    <string name="privacy_policy_supporting">Выкарыстанне даных і дазволы · на рускай мове</string>
+    <string name="privacy_policy_back">Назад</string>
 </resources>
