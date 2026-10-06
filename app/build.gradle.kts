@@ -1,3 +1,5 @@
+import com.palixander.weightogether.gradle.RuStoreSigning
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -7,6 +9,14 @@ plugins {
     id("com.palixander.weightogether.room-schema-guard")
 }
 
+val rustoreSigning = RuStoreSigning.read(
+    enabled = providers.gradleProperty("rustoreSigning").orNull,
+    environment = RuStoreSigning.environmentNames.mapNotNull { name ->
+        providers.environmentVariable(name).orNull?.let { name to it }
+    }.toMap(),
+    checkout = rootDir,
+)
+
 android {
     namespace = "com.palixander.weightogether"
     compileSdk = 36
@@ -15,7 +25,7 @@ android {
         applicationId = "com.palixander.weightogether"
         minSdk = 26
         targetSdk = 36
-        versionCode = 274
+        versionCode = 275
         versionName = "0.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -44,8 +54,22 @@ android {
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
     }
 
+    signingConfigs {
+        rustoreSigning?.let { credentials ->
+            create("rustore") {
+                storeFile = credentials.storeFile
+                storePassword = credentials.storePassword
+                keyAlias = credentials.keyAlias
+                keyPassword = credentials.keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (rustoreSigning != null) {
+                signingConfig = signingConfigs.getByName("rustore")
+            }
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
