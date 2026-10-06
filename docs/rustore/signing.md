@@ -17,8 +17,11 @@
 # Очистить только предыдущие APK целевого build type.
 find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -delete 2>/dev/null
 ./gradlew --no-configuration-cache -PrustoreSigning=true :app:assembleRelease
-"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 ```
+
+В примере используется установленный Android Build Tools 35.0.0; при другой
+версии укажите её каталог. SDK Platform 36 и версия Build Tools — разные параметры.
 
 Сверьте SHA-256 сертификата с сохранённым сертификатом владельца, package name
 `com.palixander.weightogether` и увеличенный `versionCode` перед загрузкой.
