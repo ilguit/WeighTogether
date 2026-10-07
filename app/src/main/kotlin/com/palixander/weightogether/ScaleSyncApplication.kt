@@ -9,6 +9,7 @@ import com.palixander.weightogether.backup.BackupImportService
 import com.palixander.weightogether.backup.RoomBackupImportGateway
 import com.palixander.weightogether.backup.RoomBackupSnapshotSource
 import com.palixander.weightogether.backup.asPortableSettingsWriter
+import com.palixander.weightogether.backup.cleanupBackupPhotosAtStartup
 import com.palixander.weightogether.core.BodyCompositionCalculator
 import com.palixander.weightogether.core.MiScalePacketParser
 import com.palixander.weightogether.data.AppDatabase
@@ -169,14 +170,7 @@ class AppContainer(application: Application) {
     init {
         runBlocking(Dispatchers.IO) {
             runCatching {
-                backupArchive.clearAbandonedSessions()
-                profilePhotoReferences.withStableReferences {
-                    val snapshot = backupSnapshotSource.readSnapshot()
-                    profilePhotos.removeAbandonedBackupPhotos(buildSet {
-                        snapshot.accounts.mapNotNullTo(this) { it.photoPath }
-                        snapshot.pets.mapNotNullTo(this) { it.photoPath }
-                    })
-                }
+                cleanupBackupPhotosAtStartup(database, backupArchive, profilePhotoReferences, profilePhotos)
             }.onFailure { Log.e("AppContainer", "Backup photo cleanup will be retried on next startup", it) }
             recoverBackupImportAtStartup(
                 recovery = backupImportApplier::recoverPendingImport,

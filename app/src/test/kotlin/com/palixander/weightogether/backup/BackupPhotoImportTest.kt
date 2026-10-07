@@ -19,6 +19,8 @@ import com.palixander.weightogether.profile.ProfilePhotoStore
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executor
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -50,6 +52,7 @@ class BackupPhotoImportTest {
     private lateinit var codec: BackupArchiveCodec
     private lateinit var service: BackupImportService
     private lateinit var gateway: RoomBackupImportGateway
+    private val queries = CopyOnWriteArrayList<String>()
     private val settings = VersionedPortableProfileSettings(PortableProfileSettings(null, null, false, null, null), 0)
     private val sessions get() = File(context.cacheDir, "test-backup-sessions")
 
@@ -57,7 +60,9 @@ class BackupPhotoImportTest {
     fun setUp() {
         File(context.filesDir, "profile-photos").deleteRecursively()
         sessions.deleteRecursively()
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .setQueryCallback({ sql, _ -> queries += sql }, Executor { it.run() })
+            .build()
         store = ProfilePhotoStore(context)
         references = ProfilePhotoReferenceCoordinator(database, store)
         codec = BackupArchiveCodec(sessions)
@@ -212,8 +217,13 @@ class BackupPhotoImportTest {
     }
 
     @Test
-    fun `startup cleanup preserves committed photos and removes only abandoned backup files`() = runBlocking {
+    fun `startup cleanup reads only photo paths and preserves people pet and shared photos`() = runBlocking {
         BackupImportApplier(gateway, PortableSettingsWriter {}).apply(preview(source()))
+        val shared = managed(ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, "shared"), image(0))
+        database.accountDao().insert(account("shared").copy(normalizedName = "shared", photoPath = shared))
+        database.petDao().insertPet(pet("shared").copy(normalizedName = "shared", photoPath = shared))
+        database.accountDao().insert(account("no-photo").copy(normalizedName = "no-photo"))
+        database.petDao().insertPet(pet("no-photo").copy(normalizedName = "no-photo"))
         val retained = database.accountDao().getAll().mapNotNull { it.photoPath }.toSet() +
             database.petDao().getAllPetsForBackup().mapNotNull { it.photoPath }
         val orphan = managed(ProfilePhotoOwner(ProfilePhotoOwnerType.PET, "orphan"), image(0))
@@ -222,8 +232,18 @@ class BackupPhotoImportTest {
             writeBytes(image(0))
         }
         val pending = source()
-        codec.clearAbandonedSessions()
-        store.removeAbandonedBackupPhotos(retained)
+        queries.clear()
+        cleanupBackupPhotosAtStartup(database, codec, references, store)
+
+        val dataReads = queries.filter { it.startsWith("SELECT", ignoreCase = true) && !it.contains("room_") }
+        assertEquals(
+            listOf(
+                "SELECT photoPath FROM accounts WHERE photoPath IS NOT NULL",
+                "SELECT photoPath FROM pets WHERE photoPath IS NOT NULL",
+            ),
+            dataReads,
+        )
+        assertEquals(3, retained.size)
         assertFalse(store.resolve(orphan).exists())
         assertTrue(editor.exists())
         assertTrue(retained.all { store.resolve(it).isFile })
