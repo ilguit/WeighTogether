@@ -1,6 +1,7 @@
 package com.palixander.weightogether.backup
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -107,7 +108,7 @@ class RoomBackupImportGatewayTest {
     }
 
     @Test
-    fun replaceClearsTransientTablesAndRollsBackWholeReplacementOnForeignKeyFailure() = runBlocking {
+    fun replaceClearsTransientTablesAndRollsBackWholeReplacementOnDatabaseFailure() = runBlocking {
         val original = account("old")
         database.accountDao().insert(original)
         database.measurementDao().insert(measurement("old-m", "old", SyncStatus.LOCAL_ONLY))
@@ -122,20 +123,23 @@ class RoomBackupImportGatewayTest {
         assertEquals(0, database.pendingMeasurementDao().getAll().size)
         assertEquals(0, database.pendingMeasurementDao().tombstoneCount())
 
-        assertThrows(Exception::class.java) {
-            runBlocking {
-                gateway.stage(
-                    preview(
-                        BackupImportMode.REPLACE,
-                        listOf(account("broken")),
-                        listOf(measurement("orphan", "missing", SyncStatus.SYNCED)),
-                    ),
-                )
-            }
-        }
+        database.pendingMeasurementDao().insert(pending("retained-pending"))
+        val retainedTombstone = MeasurementTombstoneEntity("retained-hash", 20_000L)
+        database.pendingMeasurementDao().upsertTombstone(retainedTombstone)
+        val replacement = preview(
+            BackupImportMode.REPLACE,
+            listOf(account("replacement")),
+            listOf(measurement("replacement-m", "replacement", SyncStatus.SYNCED)),
+        )
+
+        assertReplacementFailsDuringInsert(replacement, "measurements")
+
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
         assertEquals(listOf("new-m"), database.measurementDao().getAllForBackup().map { it.id })
+        assertEquals(listOf("retained-pending"), database.pendingMeasurementDao().getAll().map { it.id })
+        assertEquals(listOf(retainedTombstone), database.pendingMeasurementDao().getAllTombstones())
         assertEquals(null, gateway.pendingRecovery())
+        assertEquals(null, database.backupImportCheckpointDao().get())
     }
 
     @Test
@@ -172,20 +176,24 @@ class RoomBackupImportGatewayTest {
             { currentSettings },
             photoReferences = ProfilePhotoReferenceCoordinator(database) { deleted += it },
         )
-        database.accountDao().insert(account("old").copy(photoPath = accountPhoto))
-        database.petDao().insertPets(listOf(pet("old-pet").copy(photoPath = petPhoto)))
-        val invalid = preview(
+        val originalAccount = account("old").copy(photoPath = accountPhoto)
+        val originalPet = pet("old-pet").copy(photoPath = petPhoto)
+        database.accountDao().insert(originalAccount)
+        database.petDao().insertPets(listOf(originalPet))
+        val replacement = preview(
             BackupImportMode.REPLACE,
             accounts = listOf(account("new")),
-            measurements = listOf(measurement("orphan", "missing", SyncStatus.SYNCED)),
+            measurements = listOf(measurement("new-m", "new", SyncStatus.SYNCED)),
         )
 
-        assertThrows(Exception::class.java) { runBlocking { gateway.stage(invalid) } }
+        assertReplacementFailsDuringInsert(replacement, "measurements")
 
         assertEquals(emptyList<String>(), deleted)
-        assertEquals(accountPhoto, database.accountDao().getAll().single().photoPath)
-        assertEquals(petPhoto, database.petDao().getAllPetsForBackup().single().photoPath)
+        assertEquals(listOf(originalAccount), database.accountDao().getAll())
+        assertEquals(listOf(originalPet), database.petDao().getAllPetsForBackup())
+        assertTrue(database.measurementDao().getAllForBackup().isEmpty())
         assertEquals(null, gateway.pendingRecovery())
+        assertEquals(null, database.backupImportCheckpointDao().get())
     }
 
     @Test
@@ -201,26 +209,22 @@ class RoomBackupImportGatewayTest {
         assertEquals(listOf("cat"), database.petDao().getAllPetsForBackup().map { it.id })
         assertEquals(listOf("pet-m"), database.petDao().getAllMeasurementsForBackup().map { it.id })
 
-        val brokenDocument = initial.sourceDocument.copy(
-            pets = listOf(BackupPetV2("new", "new", "new", PetSpecies.CAT, 1, 2)),
-            petMeasurements = listOf(BackupPetMeasurementV2("orphan", "missing", 3, 70.0, 74.0, 4.0)),
-        )
-        val broken = BackupImportService().preview(
-            brokenDocument,
-            BackupDatabaseSnapshot(
-                database.accountDao().getAll(),
-                database.appStateDao().get() ?: AppStateEntity(),
-                database.measurementDao().getAllForBackup(),
-                database.petDao().getAllPetsForBackup(),
-                database.petDao().getAllMeasurementsForBackup(),
-            ),
-            currentSettings,
+        val replacement = preview(
             BackupImportMode.REPLACE,
+            listOf(account("new-owner")),
+            emptyList(),
+            listOf(pet("new-pet")),
+            listOf(petMeasurement("new-pet-m", "new-pet")),
         )
-        assertThrows(Exception::class.java) { runBlocking { gateway.stage(broken) } }
+
+        assertReplacementFailsDuringInsert(replacement, "pet_measurements")
+
+        assertEquals(listOf("owner"), database.accountDao().getAll().map { it.id })
+        assertEquals(initial.result.appState, database.appStateDao().get())
         assertEquals(listOf("cat"), database.petDao().getAllPetsForBackup().map { it.id })
         assertEquals(listOf("pet-m"), database.petDao().getAllMeasurementsForBackup().map { it.id })
         assertEquals(null, gateway.pendingRecovery())
+        assertEquals(null, database.backupImportCheckpointDao().get())
     }
 
     @Test
@@ -322,27 +326,46 @@ class RoomBackupImportGatewayTest {
     }
 
     @Test
-    fun startupRecoveryRollsForwardLegacyV7TargetCheckpointAndSweepsAfterCleanup() = runBlocking {
+    fun startupRecoveryRetriesLegacyV7TargetSweepBeforeCheckpointCleanup() = runBlocking {
         seedLegacyV7Checkpoint(
             phase = "TARGET_APPLIED",
             previousSettingsJson = LEGACY_PREVIOUS_SETTINGS_JSON,
             targetSettingsJson = LEGACY_TARGET_SETTINGS_JSON,
         )
         val events = mutableListOf<String>()
+        val checkpoint = checkNotNull(database.backupImportCheckpointDao().get())
+        val sweepFailure = IllegalStateException("sweep failed")
+        var failSweep = true
 
-        BackupImportApplier(
+        val applier = BackupImportApplier(
             gateway = gateway,
             settingsWriter = PortableSettingsWriter { events += "settings:${it.scaleAddress}" },
             completionHooks = listOf(
                 BackupImportCompletionHook {
-                    assertEquals(null, database.backupImportCheckpointDao().get())
+                    assertEquals(checkpoint, database.backupImportCheckpointDao().get())
                     events += "sweep"
+                    if (failSweep) throw sweepFailure
                 },
             ),
-        ).recoverPendingImport()
+        )
 
+        val failure = assertThrows(IllegalStateException::class.java) {
+            runBlocking { applier.recoverPendingImport() }
+        }
+
+        assertEquals(sweepFailure, failure)
         assertEquals(listOf("settings:AA:BB", "sweep"), events)
+        assertEquals(checkpoint, database.backupImportCheckpointDao().get())
+        assertEquals(true, gateway.pendingRecovery()?.sweepNeeded)
+
+        failSweep = false
+        applier.recoverPendingImport()
+
+        assertEquals(listOf("settings:AA:BB", "sweep", "settings:AA:BB", "sweep"), events)
         assertEquals(null, database.backupImportCheckpointDao().get())
+
+        applier.recoverPendingImport()
+        assertEquals(4, events.size)
     }
 
     @Test
@@ -490,6 +513,24 @@ class RoomBackupImportGatewayTest {
         gateway.complete()
     }
 
+    private fun assertReplacementFailsDuringInsert(preview: BackupImportPreview, table: String) {
+        // Fail only after the valid preview passes freshness checks and replacement writes begin.
+        database.openHelper.writableDatabase.execSQL(
+            """
+            CREATE TRIGGER fail_replacement AFTER INSERT ON $table
+            BEGIN SELECT RAISE(ABORT, 'forced replacement failure'); END
+            """.trimIndent(),
+        )
+        try {
+            val failure = assertThrows(SQLiteConstraintException::class.java) {
+                runBlocking { gateway.stage(preview) }
+            }
+            assertTrue(failure.message.orEmpty().contains("forced replacement failure"))
+        } finally {
+            database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_replacement")
+        }
+    }
+
     private fun seedLegacyV7Checkpoint(
         phase: String,
         previousSettingsJson: String,
@@ -546,7 +587,7 @@ class RoomBackupImportGatewayTest {
     private val emptyDocument = BackupDocumentV1(
         exportedAt = "2026-08-25T00:00:00Z",
         accounts = emptyList(),
-        appState = BackupAppStateV1(null, 0.0, false),
+        appState = BackupAppStateV1(null, 5.0, false),
         measurements = emptyList(),
         settings = BackupSettingsV1(null, null, false, null, null),
     )
@@ -568,6 +609,7 @@ class RoomBackupImportGatewayTest {
         algorithmVersion = null, healthConnectStatus = status.name,
         accountId = accountId, externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         deduplicationHash = "hash-$id",
+        createdAtEpochMillis = 1,
     )
 
     private fun pending(id: String) = PendingMeasurementEntity(
