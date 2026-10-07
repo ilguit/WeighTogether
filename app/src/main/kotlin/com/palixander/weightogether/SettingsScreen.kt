@@ -733,6 +733,12 @@ private fun DetailSectionTitle(title: String) {
 @Composable
 private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: SettingsCallbacks) {
     Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing)) {
+        Text(
+            stringResource(R.string.settings_backup_intro),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        )
         DetailSectionTitle(stringResource(R.string.settings_save_data))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.BackupSaveGroup)) {
             DetailActionRow(

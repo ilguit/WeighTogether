@@ -9,6 +9,32 @@ import org.w3c.dom.Element
 
 class LocalizationResourceContractTest {
     @Test
+    fun `backup archive copy is translated and names supported extensions in every locale`() {
+        val keys = setOf(
+            "settings_backup_contents", "settings_backup_intro",
+            "error_backup_import_extension", "error_backup_export_extension",
+        )
+        val defaults = readResources(File("src/main/res/values/strings.xml"))
+        LOCALES.forEach { locale ->
+            val resources = readResources(File("src/main/res/${locale.directory}/strings.xml"))
+            keys.forEach { key ->
+                val localized = resources.getValue(key)
+                assertFalse("Empty ${locale.tag}:$key", localized.texts.any(String::isBlank))
+                if (locale.tag != "en") {
+                    assertFalse("Untranslated ${locale.tag}:$key", defaults.getValue(key).texts == localized.texts)
+                }
+            }
+            listOf("settings_backup_intro", "error_backup_import_extension").forEach { key ->
+                val text = resources.getValue(key).texts.single()
+                if (key == "error_backup_import_extension") {
+                    assertFalse("Missing .json in ${locale.tag}:$key", !text.contains(".json"))
+                }
+                assertFalse("Missing .wtrn in ${locale.tag}:$key", !text.contains(".wtrn"))
+            }
+        }
+    }
+
+    @Test
     fun `weighing reminder copy is translated in every supported locale`() {
         val defaults = readResources(File("src/main/res/values/strings.xml"))
         val reminderKeys = defaults.keys.filter(::isReminderResource).toSet()

@@ -51,6 +51,7 @@ import com.palixander.weightogether.ui.accounts.WeightDeltaEditorState
 import com.palixander.weightogether.ui.accounts.reconcileAccountManagement
 import com.palixander.weightogether.ui.accounts.reduceAccountManagement
 import com.palixander.weightogether.ui.text.UiText
+import com.palixander.weightogether.ui.text.UserFacingUiTextException
 import com.palixander.weightogether.ui.text.uiText
 import com.palixander.weightogether.ui.routing.MeasurementResolverUiState
 import com.palixander.weightogether.ui.routing.PendingResolverCompletion
@@ -476,12 +477,13 @@ class MainViewModel @JvmOverloads constructor(
 
     fun exportBackup(uri: Uri?) {
         if (uri == null || backup.value.inProgress) return
+        backup.value.preview?.source?.close()
+        backup.value = BackupUiState(inProgress = true)
         viewModelScope.launch(Dispatchers.IO) {
-            backup.value = BackupUiState(inProgress = true)
             try {
-                getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
+                BackupDocuments(getApplication<Application>().contentResolver).openExport(uri).use {
                     container.backupExport.writeTo(it)
-                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
+                }
                 showMessage(uiText(R.string.message_backup_saved))
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -495,30 +497,39 @@ class MainViewModel @JvmOverloads constructor(
 
     fun previewBackup(uri: Uri?, mode: BackupImportMode) {
         if (uri == null || backup.value.inProgress) return
+        backup.value.preview?.source?.close()
+        backup.value = BackupUiState(inProgress = true)
         viewModelScope.launch(Dispatchers.IO) {
-            backup.value = BackupUiState(inProgress = true)
+            var source: com.palixander.weightogether.backup.BackupImportSource? = null
             try {
-                val document = getApplication<Application>().contentResolver.openInputStream(uri)?.use {
-                    container.backupImport.read(it)
-                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
+                source = BackupDocuments(getApplication<Application>().contentResolver).openImport(uri).use {
+                    container.backupImport.readSource(it)
+                }
                 val preview = container.backupImport.preview(
-                    document,
+                    source,
                     container.backupSnapshotSource.readSnapshot(),
                     container.profileStore.versionedPortableSnapshot(),
                     mode,
                 )
                 backup.value = BackupUiState(preview = preview)
+                source = null // Ownership moves to the visible preview.
             } catch (cancelled: CancellationException) {
                 backup.value = BackupUiState()
                 throw cancelled
             } catch (error: Exception) {
                 backup.value = BackupUiState()
                 showMessage(error.userFacingMessage(uiText(R.string.error_backup_read)))
+            } finally {
+                source?.close()
             }
         }
     }
 
-    fun dismissBackupPreview() { backup.value = BackupUiState() }
+    fun dismissBackupPreview() {
+        if (backup.value.inProgress) return
+        backup.value.preview?.source?.close()
+        backup.value = BackupUiState()
+    }
 
     fun requestBackupImport() {
         val preview = backup.value.preview ?: return
@@ -531,8 +542,8 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun applyBackupImport(preview: BackupImportPreview) {
         if (backup.value.inProgress) return
+        backup.value = backup.value.copy(inProgress = true)
         viewModelScope.launch(Dispatchers.IO) {
-            backup.value = backup.value.copy(inProgress = true)
             try {
                 val pendingBefore = container.measurementPersistence.pendingSnapshot()
                 val result = container.backupImportApplier.apply(preview)
@@ -559,13 +570,15 @@ class MainViewModel @JvmOverloads constructor(
                     ),
                 )
             } catch (cancelled: CancellationException) {
+                preview.source?.close()
                 backup.value = BackupUiState()
                 throw cancelled
             } catch (stale: com.palixander.weightogether.backup.BackupPreviewStale) {
                 backup.value = BackupUiState(preview = stale.refreshedPreview)
                 showMessage(uiText(R.string.message_backup_preview_stale))
             } catch (error: Exception) {
-                backup.value = backup.value.copy(inProgress = false)
+                preview.source?.close()
+                backup.value = BackupUiState()
                 showMessage(error.userFacingMessage(uiText(R.string.error_backup_import)))
             }
         }
@@ -1257,6 +1270,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     override fun onCleared() {
+        backup.value.preview?.source?.close()
         petHistoryOwners.values.forEach { it.close() }
         invalidatePetMeasurementStartup()
         petMeasurementCoordinator.clear()
@@ -1919,8 +1933,6 @@ private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (
     }
     RoutingDecision.NoMatch -> emptyList()
 }
-
-private class UserFacingUiTextException(val uiText: UiText) : Exception()
 
 private fun Throwable.userFacingMessage(fallback: UiText): UiText = when (this) {
     is UserFacingUiTextException -> uiText

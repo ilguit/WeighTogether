@@ -86,6 +86,9 @@ interface PetDao {
     @Query("SELECT COUNT(*) FROM pets WHERE photoPath = :photoPath")
     suspend fun countPhotoReferences(photoPath: String): Int
 
+    @Query("SELECT photoPath FROM pets WHERE photoPath IS NOT NULL")
+    suspend fun getPhotoPaths(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPet(pet: PetEntity): Long
 

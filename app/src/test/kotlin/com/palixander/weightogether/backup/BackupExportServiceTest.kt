@@ -69,7 +69,10 @@ class BackupExportServiceTest {
 
         val output = ByteArrayOutputStream()
         val document = service.writeTo(output)
-        val decoded = BackupJsonCodec().decode(output.toString(Charsets.UTF_8.name()))
+        val decoded = java.util.zip.ZipInputStream(output.toByteArray().inputStream()).use { zip ->
+            assertEquals("backup.json", zip.nextEntry.name)
+            BackupJsonCodec().decode(zip.readBytes().toString(Charsets.UTF_8))
+        }
 
         assertEquals(document, decoded)
         assertEquals(BACKUP_SCHEMA_VERSION, document.schemaVersion)
@@ -125,7 +128,10 @@ class BackupExportServiceTest {
 
         val output = ByteArrayOutputStream()
         val exported = service(source).writeTo(output)
-        val decoded = BackupJsonCodec().decode(output.toString(Charsets.UTF_8.name()))
+        val decoded = java.util.zip.ZipInputStream(output.toByteArray().inputStream()).use { zip ->
+            assertEquals("backup.json", zip.nextEntry.name)
+            BackupJsonCodec().decode(zip.readBytes().toString(Charsets.UTF_8))
+        }
 
         assertEquals(exported, decoded)
         assertEquals(PetSpecies.UNSPECIFIED, decoded.pets.single().species)

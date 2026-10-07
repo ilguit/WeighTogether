@@ -47,3 +47,5 @@ fun uiText(@StringRes id: Int, vararg arguments: Any): UiText =
 
 fun pluralUiText(@PluralsRes id: Int, quantity: Int, vararg arguments: Any): UiText =
     UiText.Plural(id, quantity, arguments.toList())
+
+internal class UserFacingUiTextException(val uiText: UiText) : Exception()
