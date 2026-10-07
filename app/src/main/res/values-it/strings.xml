@@ -73,7 +73,7 @@
     <string name="settings_status">Stato</string>
     <string name="settings_save_data">Salva dati</string>
     <string name="settings_export_backup">Esporta backup</string>
-    <string name="settings_backup_contents">Profili, animali, misurazioni, e impostazioni</string>
+    <string name="settings_backup_contents">Profili, animali, foto, misurazioni e impostazioni</string>
     <string name="settings_backup_processing">Elaborazione backup…</string>
     <string name="settings_restore_data">Ripristina dati</string>
     <string name="settings_import_merge">Importa e merge</string>
@@ -127,7 +127,7 @@
     <string name="settings_delete_pet_question">Elimina %1$s?</string>
     <string name="settings_delete_pet_explanation">%1$d misurazioni verrà eliminato. Questo azione non può essere undone.</string>
     <string name="settings_delete">Elimina</string>
-    <string name="settings_backup_intro">Salva dati come JSON o importa un copy con un anteprima.</string>
+    <string name="settings_backup_intro">Salva dati e foto in formato .wtrn o importa un backup con un’anteprima.</string>
     <string name="settings_export">Esporta</string>
     <string name="settings_import_replace">Importa e sostituisci</string>
     <string name="settings_primary_not_selected">Nessun profilo principale selezionato</string>
@@ -562,4 +562,6 @@
     <string name="privacy_policy_title">Informativa sulla privacy</string>
     <string name="privacy_policy_supporting">Uso dei dati e autorizzazioni · in russo</string>
     <string name="privacy_policy_back">Indietro</string>
+    <string name="error_backup_import_extension">Scegli un file di backup .json o .wtrn.</string>
+    <string name="error_backup_export_extension">Il nome del file deve terminare con .wtrn. Salva di nuovo con questa estensione, senza .zip.</string>
 </resources>

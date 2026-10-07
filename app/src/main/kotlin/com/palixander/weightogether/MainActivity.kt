@@ -16,7 +16,6 @@ import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.health.connect.client.PermissionController
 import com.palixander.weightogether.ble.BleSupport
-import com.palixander.weightogether.backup.BackupImportMode
 import com.palixander.weightogether.worker.PendingMeasurementNotificationHelper
 import com.palixander.weightogether.domain.AccountId
 import com.palixander.weightogether.domain.PetId
@@ -33,15 +32,15 @@ class MainActivity : AppCompatActivity() {
     private val measurementsViewModel: MeasurementsViewModel by viewModels()
     private val chartsViewModel: ChartsViewModel by viewModels()
     private var healthConnectSystemManagementAvailable by mutableStateOf(false)
-    private var requestedImportMode = BackupImportMode.MERGE
+    private val backupPickerState = BackupPickerState()
 
     private val createBackup = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
+        CreateBackupDocument(),
     ) { uri ->
         viewModel.exportBackup(uri)
     }
-    private val openBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
-        viewModel.previewBackup(it, requestedImportMode)
+    private val openBackup = registerForActivityResult(OpenBackupDocument()) {
+        viewModel.previewBackup(it, backupPickerState.requestedImportMode)
     }
 
     private val bluetoothPermissions = registerForActivityResult(
@@ -73,6 +72,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        backupPickerState.restore(savedInstanceState)
         refreshHealthConnectSystemManagementAvailability()
         val systemBarColor = getColor(R.color.scalesync_primary)
         enableEdgeToEdge(
@@ -98,8 +98,8 @@ class MainActivity : AppCompatActivity() {
                 openApplicationSettings = ::openApplicationSettings,
                 createBackup = { createBackup.launch(defaultBackupFileName()) },
                 openBackup = { mode ->
-                    requestedImportMode = mode
-                    openBackup.launch(arrayOf("application/json"))
+                    backupPickerState.requestedImportMode = mode
+                    openBackup.launch(Unit)
                 },
             )
         }
@@ -113,6 +113,11 @@ class MainActivity : AppCompatActivity() {
             requestNotificationPermission()
         }
         else bluetoothPermissions.launch(missing.toTypedArray())
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        backupPickerState.save(outState)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onResume() {
@@ -219,4 +224,4 @@ internal fun consumeReminderProfileTarget(intent: Intent): ReminderProfileIntent
 }
 
 internal fun defaultBackupFileName(date: LocalDate = LocalDate.now()): String =
-    "scalesync-backup-$date.json"
+    "weigh-together-backup-$date.wtrn"

@@ -19,7 +19,7 @@ import org.junit.Test
 class BackupUiContractTest {
     @Test
     fun `backup filename contains ISO date`() {
-        assertEquals("scalesync-backup-2026-08-25.json", defaultBackupFileName(LocalDate.of(2026, 8, 25)))
+        assertEquals("weigh-together-backup-2026-08-25.wtrn", defaultBackupFileName(LocalDate.of(2026, 8, 25)))
     }
 
     @Test

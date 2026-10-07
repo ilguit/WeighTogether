@@ -73,7 +73,7 @@
     <string name="settings_status">Status</string>
     <string name="settings_save_data">Speichern Daten</string>
     <string name="settings_export_backup">Exportieren backup</string>
-    <string name="settings_backup_contents">Profil, Haustiere, Messungen, und Einstellungen</string>
+    <string name="settings_backup_contents">Profile, Haustiere, Fotos, Messungen und Einstellungen</string>
     <string name="settings_backup_processing">Processing backup…</string>
     <string name="settings_restore_data">Wiederherstellen Daten</string>
     <string name="settings_import_merge">Importieren und merge</string>
@@ -127,7 +127,7 @@
     <string name="settings_delete_pet_question">Löschen %1$s?</string>
     <string name="settings_delete_pet_explanation">%1$d Messungen wird werden gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</string>
     <string name="settings_delete">Löschen</string>
-    <string name="settings_backup_intro">Speichern Daten als JSON oder importieren ein copy mit ein preview.</string>
+    <string name="settings_backup_intro">Speichern Sie Daten und Fotos als .wtrn oder importieren Sie eine Sicherung mit Vorschau.</string>
     <string name="settings_export">Exportieren</string>
     <string name="settings_import_replace">Importieren und ersetzen</string>
     <string name="settings_primary_not_selected">Keine Hauptprofil ausgewählte</string>
@@ -562,4 +562,6 @@
     <string name="privacy_policy_title">Datenschutzerklärung</string>
     <string name="privacy_policy_supporting">Datennutzung und Berechtigungen · auf Russisch</string>
     <string name="privacy_policy_back">Zurück</string>
+    <string name="error_backup_import_extension">Wählen Sie eine Sicherungsdatei mit der Endung .json oder .wtrn.</string>
+    <string name="error_backup_export_extension">Der Dateiname muss auf .wtrn enden. Speichern Sie erneut mit dieser Endung, ohne .zip.</string>
 </resources>

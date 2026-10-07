@@ -77,7 +77,7 @@
     <string name="settings_status">Status</string>
     <string name="settings_save_data">Save data</string>
     <string name="settings_export_backup">Export backup</string>
-    <string name="settings_backup_contents">Profiles, pets, measurements, and settings</string>
+    <string name="settings_backup_contents">Profiles, pets, photos, measurements, and settings</string>
     <string name="settings_backup_processing">Processing backup…</string>
     <string name="settings_restore_data">Restore data</string>
     <string name="settings_import_merge">Import and merge</string>
@@ -131,7 +131,7 @@
     <string name="settings_delete_pet_question">Delete %1$s?</string>
     <string name="settings_delete_pet_explanation">%1$d measurements will be deleted. This action cannot be undone.</string>
     <string name="settings_delete">Delete</string>
-    <string name="settings_backup_intro">Save data as JSON or import a copy with a preview.</string>
+    <string name="settings_backup_intro">Save data and photos in .wtrn or import a backup with a preview.</string>
     <string name="settings_export">Export</string>
     <string name="settings_import_replace">Import and replace</string>
     <string name="settings_primary_not_selected">No primary profile selected</string>
@@ -463,4 +463,6 @@
     <string name="privacy_policy_title">Privacy policy</string>
     <string name="privacy_policy_supporting">Data use and permissions · in Russian</string>
     <string name="privacy_policy_back">Back</string>
+    <string name="error_backup_import_extension">Choose a .json or .wtrn backup file.</string>
+    <string name="error_backup_export_extension">The file must end in .wtrn. Save again with this extension, without .zip.</string>
 </resources>

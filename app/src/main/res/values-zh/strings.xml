@@ -69,7 +69,7 @@
     <string name="settings_status">状态</string>
     <string name="settings_save_data">保存数据</string>
     <string name="settings_export_backup">导出备份</string>
-    <string name="settings_backup_contents">档案、宠物、测量记录和设置</string>
+    <string name="settings_backup_contents">个人档案、宠物、照片、测量数据和设置</string>
     <string name="settings_backup_processing">正在处理备份…</string>
     <string name="settings_restore_data">恢复数据</string>
     <string name="settings_import_merge">导入并合并</string>
@@ -123,7 +123,7 @@
     <string name="settings_delete_pet_question">要删除 %1$s 吗？</string>
     <string name="settings_delete_pet_explanation">将删除 %1$d 条测量记录。此操作无法撤销。</string>
     <string name="settings_delete">删除</string>
-    <string name="settings_backup_intro">将数据保存为 JSON，或先预览再导入副本。</string>
+    <string name="settings_backup_intro">将数据和照片保存为.wtrn文件，或预览并导入备份。</string>
     <string name="settings_export">导出</string>
     <string name="settings_import_replace">导入并替换</string>
     <string name="settings_primary_not_selected">未选择主要档案</string>
@@ -460,4 +460,6 @@
     <string name="privacy_policy_title">隐私政策</string>
     <string name="privacy_policy_supporting">数据使用和权限 · 俄语</string>
     <string name="privacy_policy_back">返回</string>
+    <string name="error_backup_import_extension">请选择.json或.wtrn备份文件。</string>
+    <string name="error_backup_export_extension">文件名必须以.wtrn结尾。请使用此扩展名重新保存，不要添加.zip。</string>
 </resources>

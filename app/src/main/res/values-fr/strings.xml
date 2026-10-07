@@ -73,7 +73,7 @@
     <string name="settings_status">État</string>
     <string name="settings_save_data">Enregistrer les données</string>
     <string name="settings_export_backup">Exporter la sauvegarde</string>
-    <string name="settings_backup_contents">Profils, animaux de compagnie, mesures et réglages</string>
+    <string name="settings_backup_contents">Profils, animaux, photos, mesures et paramètres</string>
     <string name="settings_backup_processing">Traitement des sauvegardes...</string>
     <string name="settings_restore_data">Restaurer les données</string>
     <string name="settings_import_merge">Importer et fusionner</string>
@@ -127,7 +127,7 @@
     <string name="settings_delete_pet_question">Supprimer %1$s?</string>
     <string name="settings_delete_pet_explanation">Les mesures %1$d seront supprimées. Cette action ne peut pas être annulée.</string>
     <string name="settings_delete">Supprimer</string>
-    <string name="settings_backup_intro">Enregistrer les données sous JSON ou importer une copie avec un aperçu.</string>
+    <string name="settings_backup_intro">Enregistrez les données et les photos au format .wtrn ou importez une sauvegarde avec un aperçu.</string>
     <string name="settings_export">Exportations</string>
     <string name="settings_import_replace">Importation et remplacement</string>
     <string name="settings_primary_not_selected">Aucun profil primaire sélectionné</string>
@@ -562,4 +562,6 @@
     <string name="privacy_policy_title">Politique de confidentialité</string>
     <string name="privacy_policy_supporting">Utilisation des données et autorisations · en russe</string>
     <string name="privacy_policy_back">Retour</string>
+    <string name="error_backup_import_extension">Choisissez un fichier de sauvegarde .json ou .wtrn.</string>
+    <string name="error_backup_export_extension">Le nom du fichier doit se terminer par .wtrn. Enregistrez à nouveau avec cette extension, sans .zip.</string>
 </resources>

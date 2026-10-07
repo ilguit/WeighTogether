@@ -51,6 +51,7 @@ import com.palixander.weightogether.ui.accounts.WeightDeltaEditorState
 import com.palixander.weightogether.ui.accounts.reconcileAccountManagement
 import com.palixander.weightogether.ui.accounts.reduceAccountManagement
 import com.palixander.weightogether.ui.text.UiText
+import com.palixander.weightogether.ui.text.UserFacingUiTextException
 import com.palixander.weightogether.ui.text.uiText
 import com.palixander.weightogether.ui.routing.MeasurementResolverUiState
 import com.palixander.weightogether.ui.routing.PendingResolverCompletion
@@ -480,9 +481,9 @@ class MainViewModel @JvmOverloads constructor(
         backup.value = BackupUiState(inProgress = true)
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
+                BackupDocuments(getApplication<Application>().contentResolver).openExport(uri).use {
                     container.backupExport.writeTo(it)
-                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
+                }
                 showMessage(uiText(R.string.message_backup_saved))
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -501,9 +502,9 @@ class MainViewModel @JvmOverloads constructor(
         viewModelScope.launch(Dispatchers.IO) {
             var source: com.palixander.weightogether.backup.BackupImportSource? = null
             try {
-                source = getApplication<Application>().contentResolver.openInputStream(uri)?.use {
+                source = BackupDocuments(getApplication<Application>().contentResolver).openImport(uri).use {
                     container.backupImport.readSource(it)
-                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
+                }
                 val preview = container.backupImport.preview(
                     source,
                     container.backupSnapshotSource.readSnapshot(),
@@ -1932,8 +1933,6 @@ private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (
     }
     RoutingDecision.NoMatch -> emptyList()
 }
-
-private class UserFacingUiTextException(val uiText: UiText) : Exception()
 
 private fun Throwable.userFacingMessage(fallback: UiText): UiText = when (this) {
     is UserFacingUiTextException -> uiText
