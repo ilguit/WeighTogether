@@ -1,6 +1,7 @@
 package com.palixander.weightogether
 
 import com.palixander.weightogether.backup.BACKUP_SCHEMA_VERSION
+import com.palixander.weightogether.backup.BackupArchiveCodec
 import com.palixander.weightogether.backup.BackupDatabaseSnapshot
 import com.palixander.weightogether.backup.BackupExportService
 import com.palixander.weightogether.backup.BackupImportMode
@@ -42,9 +43,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class PetReferenceIntegrationTest {
+    @get:Rule val temporaryFolder = TemporaryFolder()
+
     private val catalog = PetBreedCatalog()
     private val referenceDate = LocalDate.of(2025, 1, 15)
     private val timestamp = Instant.parse("2026-08-31T10:00:00Z")
@@ -188,9 +193,7 @@ class PetReferenceIntegrationTest {
         assertEquals(birthDate.monthValue, backedUpKnown.birthMonth)
         assertEquals(birthDate.dayOfMonth, backedUpKnown.birthDay)
 
-        val importedDocument = BackupImportService().read(
-            ByteArrayInputStream(output.toByteArray()),
-        )
+        val importedDocument = readArchive(output)
         val imported = BackupImportService().preview(
             document = importedDocument,
             current = BackupDatabaseSnapshot(emptyList(), AppStateEntity(), emptyList()),
@@ -291,7 +294,7 @@ class PetReferenceIntegrationTest {
         assertNull(backedUpMonth.birthDay)
 
         val restored = BackupImportService().preview(
-            document = BackupImportService().read(ByteArrayInputStream(output.toByteArray())),
+            document = readArchive(output),
             current = BackupDatabaseSnapshot(emptyList(), AppStateEntity(), emptyList()),
             currentSettings = emptySettings(),
             mode = BackupImportMode.REPLACE,
@@ -328,6 +331,10 @@ class PetReferenceIntegrationTest {
         assertEquals(com.palixander.weightogether.ui.text.UiText.Resource(R.string.pet_reference_unavailable_sex), reference.explanation)
         assertNull(petWeightChartRange(emptyList(), reference))
     }
+
+    private fun readArchive(output: ByteArrayOutputStream) = BackupImportService(
+        archiveCodec = BackupArchiveCodec(temporaryFolder.newFolder()),
+    ).readSource(ByteArrayInputStream(output.toByteArray())).use { it.document }
 
     private fun humanAccount() = AccountEntity(
         id = "human-account",
