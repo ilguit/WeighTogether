@@ -62,6 +62,9 @@ class ProfilePhotoReferenceCoordinator(
         }
     }
 
+    /** Keeps referenced files alive while export copies one database snapshot to private staging. */
+    suspend fun <T> withStableReferences(block: suspend () -> T): T = operationMutex.withLock { block() }
+
     private suspend fun lease(paths: Set<String>) = leaseMutex.withLock {
         paths.forEach { path -> leasedPaths[path] = leasedPaths.getOrDefault(path, 0) + 1 }
     }

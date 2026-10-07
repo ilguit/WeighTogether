@@ -135,14 +135,24 @@ class AppContainer(application: Application) {
         externalSyncOperations = externalSyncOperations,
     )
     val backupSnapshotSource = RoomBackupSnapshotSource(database)
-    val backupExport = BackupExportService(backupSnapshotSource, profileStore::portableSnapshot)
-    val backupImport = BackupImportService()
+    private val backupArchive = com.palixander.weightogether.backup.BackupArchiveCodec(
+        java.io.File(application.cacheDir, "backup-sessions"),
+    )
+    val backupExport = BackupExportService(
+        backupSnapshotSource,
+        profileStore::portableSnapshot,
+        archiveCodec = backupArchive,
+        photoStore = profilePhotos,
+        photoReferences = profilePhotoReferences,
+    )
+    val backupImport = BackupImportService(archiveCodec = backupArchive)
     val backupImportApplier = BackupImportApplier(
         RoomBackupImportGateway(
             database,
             profileStore::versionedPortableSnapshot,
             backupImport,
             photoReferences = profilePhotoReferences,
+            photoStore = profilePhotos,
         ),
         profileStore.asPortableSettingsWriter(),
         externalSyncOperations,
@@ -158,6 +168,16 @@ class AppContainer(application: Application) {
 
     init {
         runBlocking(Dispatchers.IO) {
+            runCatching {
+                backupArchive.clearAbandonedSessions()
+                profilePhotoReferences.withStableReferences {
+                    val snapshot = backupSnapshotSource.readSnapshot()
+                    profilePhotos.removeAbandonedBackupPhotos(buildSet {
+                        snapshot.accounts.mapNotNullTo(this) { it.photoPath }
+                        snapshot.pets.mapNotNullTo(this) { it.photoPath }
+                    })
+                }
+            }.onFailure { Log.e("AppContainer", "Backup photo cleanup will be retried on next startup", it) }
             recoverBackupImportAtStartup(
                 recovery = backupImportApplier::recoverPendingImport,
                 reportFailure = { failure ->

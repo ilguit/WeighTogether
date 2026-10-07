@@ -281,6 +281,40 @@ class ProfilePhotoStore private constructor(
         return PendingProfilePhotoCapture(uri, identifier, file)
     }
 
+    /** Installs already validated backup bytes under a fresh, app-generated owner path. */
+    internal fun importBackupPhoto(owner: ProfilePhotoOwner, source: File): String {
+        val directory = File(filesRoot, "$PHOTO_DIRECTORY/${owner.type.directoryName}/backup-${UUID.randomUUID()}")
+        check(directory.mkdirs()) { "Cannot create imported photo directory" }
+        val destination = File(directory, "${owner.id.safeStorageKey()}.jpg")
+        try {
+            source.inputStream().use { input ->
+                destination.outputStream().use { output ->
+                    com.palixander.weightogether.backup.copyBounded(
+                        input, output, com.palixander.weightogether.backup.MAX_BACKUP_PHOTO_BYTES,
+                    )
+                }
+            }
+            return destination.relativeTo(filesRoot).invariantSeparatorsPath
+        } catch (failure: Throwable) {
+            directory.deleteRecursively()
+            throw failure
+        }
+    }
+
+    /** Only backup-created files are swept; ordinary editor drafts are left untouched. */
+    internal suspend fun removeAbandonedBackupPhotos(referencedPaths: Set<String>) {
+        ProfilePhotoOwnerType.entries.forEach { type ->
+            File(filesRoot, "$PHOTO_DIRECTORY/${type.directoryName}").listFiles()
+                ?.filter { it.isDirectory && BACKUP_DIRECTORY_PATTERN.matches(it.name) }
+                ?.forEach { directory ->
+                    directory.listFiles()?.forEach { file ->
+                        val path = file.relativeTo(filesRoot).invariantSeparatorsPath
+                        if (path !in referencedPaths) onPhotoDereferenced(path)
+                    }
+                }
+        }
+    }
+
     override suspend fun onPhotoDereferenced(photoPath: String) {
         val photo = resolve(photoPath)
         if (photo.exists() && !deleteFile(photo) && photo.exists()) {
@@ -354,6 +388,7 @@ class ProfilePhotoStore private constructor(
         private const val CAPTURE_DIRECTORY = "profile-photo-capture"
         private const val PREPARED_DIRECTORY = "profile-photo-prepared"
         private const val STALE_CAPTURE_AGE_MILLIS = 24 * 60 * 60 * 1_000L
+        private val BACKUP_DIRECTORY_PATTERN = Regex("backup-[a-f0-9-]{36}")
         private val CAPTURE_FILE_PATTERN = Regex("capture-[A-Za-z0-9._-]+\\.jpg")
         private val PREPARED_FILE_PATTERN = Regex("prepared-[A-Fa-f0-9-]+\\.jpg")
         private const val PREPARED_JPEG_QUALITY = 95

@@ -27,7 +27,13 @@ import com.palixander.weightogether.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.palixander.weightogether.profile.ProfilePhotoOwner
+import com.palixander.weightogether.profile.ProfilePhotoOwnerType
+import com.palixander.weightogether.profile.ProfilePhotoStore
 import java.io.InputStream
+import java.io.PushbackInputStream
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 
@@ -80,6 +86,7 @@ data class BackupImportPreview(
     val settings: PortableProfileSettings,
     val sourceDocument: BackupDocumentV1,
     val baselineToken: BackupImportBaselineToken,
+    val source: BackupImportSource? = null,
 )
 
 data class BackupImportBaselineToken(
@@ -109,33 +116,54 @@ class RoomBackupImportGateway internal constructor(
     private val checkpointCodec: BackupImportCheckpointCodec = BackupImportCheckpointCodec(),
     private val photoReferences: ProfilePhotoReferenceCoordinator =
         ProfilePhotoReferenceCoordinator(database),
+    private val photoStore: ProfilePhotoStore? = null,
 ) : BackupImportGateway {
-    override suspend fun stage(preview: BackupImportPreview) {
-        if (preview.mode == BackupImportMode.REPLACE) {
-            val retainedPhotoPaths = buildSet {
-                preview.result.accounts.mapNotNullTo(this) { it.photoPath }
-                preview.result.pets.mapNotNullTo(this) { it.photoPath }
+    override suspend fun stage(preview: BackupImportPreview) = withContext(NonCancellable) {
+        preview.source?.requireOpen()
+        val installed = linkedMapOf<ProfilePhotoOwner, String>()
+        var committed = false
+        try {
+            val incomingOwners = buildSet {
+                val existingAccounts = preview.baselineToken.database.accounts.mapTo(hashSetOf()) { it.id }
+                val existingPets = preview.baselineToken.database.pets.mapTo(hashSetOf()) { it.id }
+                preview.result.accounts.filter { preview.mode == BackupImportMode.REPLACE || it.id !in existingAccounts }
+                    .forEach { add(ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, it.id)) }
+                preview.result.pets.filter { preview.mode == BackupImportMode.REPLACE || it.id !in existingPets }
+                    .forEach { add(ProfilePhotoOwner(ProfilePhotoOwnerType.PET, it.id)) }
             }
-            photoReferences.mutate(retainedPhotoPaths) {
-                val dereferencedPhotoPaths = replaceWithinTransaction(preview)
-                ProfilePhotoMutation(Unit, dereferencedPhotoPaths)
+            preview.source?.photos?.filterKeys { it in incomingOwners }?.forEach { (owner, file) ->
+                val store = photoStore ?: throw BackupException.Invalid("photos", "photo storage unavailable")
+                installed[owner] = store.importBackupPhoto(owner, file)
             }
-        } else {
-            importWithinTransaction(preview)
+            photoReferences.mutate(installed.values.toSet()) {
+                val removed = database.withTransaction {
+                    val removed = if (preview.mode == BackupImportMode.REPLACE) buildSet {
+                        database.accountDao().getAll().mapNotNullTo(this) { it.photoPath }
+                        database.petDao().getAllPetsForBackup().mapNotNullTo(this) { it.photoPath }
+                    } else emptySet()
+                    importWithinTransaction(preview, installed)
+                    removed
+                }
+                committed = true
+                // Files and Room references are durable before disposing preview bytes. If process
+                // death interrupts settings, the existing checkpoint resumes without the archive.
+                preview.source?.close()
+                ProfilePhotoMutation(Unit, removed)
+            }
+        } finally {
+            // A failed/stale transaction owns no new files. Recheck Room before cleanup in case a
+            // storage failure made the commit outcome uncertain. Successful imports do not enqueue
+            // their still-referenced photos for repeated cleanup on every subsequent profile edit.
+            if (!committed) {
+                photoReferences.mutate(emptySet()) { ProfilePhotoMutation(Unit, installed.values.toSet()) }
+            }
         }
     }
 
-    private suspend fun replaceWithinTransaction(preview: BackupImportPreview): Set<String> =
-        database.withTransaction {
-            val dereferencedPhotoPaths = buildSet {
-                database.accountDao().getAll().mapNotNullTo(this) { it.photoPath }
-                database.petDao().getAllPetsForBackup().mapNotNullTo(this) { it.photoPath }
-            }
-            importWithinTransaction(preview)
-            dereferencedPhotoPaths
-        }
-
-    private suspend fun importWithinTransaction(preview: BackupImportPreview): Unit =
+    private suspend fun importWithinTransaction(
+        preview: BackupImportPreview,
+        installed: Map<ProfilePhotoOwner, String>,
+    ): Unit =
         database.withTransaction {
         val currentDatabase = BackupDatabaseSnapshot(
             accounts = database.accountDao().getAll(),
@@ -151,7 +179,7 @@ class RoomBackupImportGateway internal constructor(
             currentDatabase,
             currentSettings,
             preview.mode,
-        )
+        ).copy(source = preview.source)
         if (preview.baselineToken != refreshed.baselineToken ||
             preview.counts != refreshed.counts ||
             preview.result != refreshed.result ||
@@ -159,22 +187,39 @@ class RoomBackupImportGateway internal constructor(
         ) {
             throw BackupPreviewStale(refreshed)
         }
+        val result = preview.result.copy(
+            accounts = preview.result.accounts.map { account ->
+                installed[ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, account.id)]?.let { account.copy(photoPath = it) } ?: account
+            },
+            pets = preview.result.pets.map { pet ->
+                installed[ProfilePhotoOwner(ProfilePhotoOwnerType.PET, pet.id)]?.let { pet.copy(photoPath = it) } ?: pet
+            },
+        )
+        val photoCleanupPaths = buildSet {
+            database.backupImportCheckpointDao().get()?.takeIf { checkpointCodec.decodeRecovery(it) != null }?.let { previous ->
+                addAll(checkpointCodec.decodePhotoCleanupPaths(previous))
+            }
+            if (preview.mode == BackupImportMode.REPLACE) {
+                currentDatabase.accounts.mapNotNullTo(this) { it.photoPath }
+                currentDatabase.pets.mapNotNullTo(this) { it.photoPath }
+            }
+        }
         database.backupImportCheckpointDao().replace(
             BackupImportCheckpointEntity(
                 operationId = UUID.randomUUID().toString(),
                 sweepNeeded = true.toString(),
-                targetSettingsJson = checkpointCodec.encodeSettings(preview.settings),
+                targetSettingsJson = checkpointCodec.encodeSettings(preview.settings, photoCleanupPaths),
             ),
         )
         when (preview.mode) {
             BackupImportMode.MERGE -> {
-                database.accountDao().insertAll(preview.result.accounts)
-                database.measurementDao().insertAll(preview.result.measurements)
-                database.petDao().insertPets(preview.result.pets)
-                database.petDao().insertMeasurements(preview.result.petMeasurements)
-                database.appStateDao().replace(preview.result.appState)
+                database.accountDao().insertAll(result.accounts)
+                database.measurementDao().insertAll(result.measurements)
+                database.petDao().insertPets(result.pets)
+                database.petDao().insertMeasurements(result.petMeasurements)
+                database.appStateDao().replace(result.appState)
                 val existingIds = currentDatabase.reminderSchedules.mapTo(hashSetOf()) { it.id }
-                preview.result.reminderSchedules.filterNot { it.id in existingIds }.forEach { schedule ->
+                result.reminderSchedules.filterNot { it.id in existingIds }.forEach { schedule ->
                     check(database.weighingReminderDao().insert(schedule) != -1L)
                     database.weighingReminderDao().insertRuntime(WeighingReminderRuntimeEntity(schedule.id))
                 }
@@ -187,13 +232,13 @@ class RoomBackupImportGateway internal constructor(
                 database.petDao().deleteAllMeasurements()
                 database.petDao().deleteAllPets()
                 database.accountDao().deleteAll()
-                database.accountDao().insertAll(preview.result.accounts)
-                database.appStateDao().replace(preview.result.appState)
-                database.measurementDao().insertAll(preview.result.measurements)
-                database.petDao().insertPets(preview.result.pets)
-                database.petDao().insertMeasurements(preview.result.petMeasurements)
-                database.weighingReminderDao().insertAll(preview.result.reminderSchedules)
-                preview.result.reminderSchedules.forEach { schedule ->
+                database.accountDao().insertAll(result.accounts)
+                database.appStateDao().replace(result.appState)
+                database.measurementDao().insertAll(result.measurements)
+                database.petDao().insertPets(result.pets)
+                database.petDao().insertMeasurements(result.petMeasurements)
+                database.weighingReminderDao().insertAll(result.reminderSchedules)
+                result.reminderSchedules.forEach { schedule ->
                     database.weighingReminderDao().insertRuntime(WeighingReminderRuntimeEntity(schedule.id))
                 }
             }
@@ -205,6 +250,14 @@ class RoomBackupImportGateway internal constructor(
         database.backupImportCheckpointDao().get()?.let(checkpointCodec::decodeRecovery)
 
     override suspend fun complete() {
+        val checkpoint = checkNotNull(database.backupImportCheckpointDao().get()) {
+            "Backup import checkpoint disappeared before cleanup"
+        }
+        // Persisted in the same transaction as replacement. On restart, retry old-photo cleanup
+        // before removing the checkpoint; recheck references to preserve any subsequently reused file.
+        photoReferences.mutate(emptySet()) {
+            ProfilePhotoMutation(Unit, checkpointCodec.decodePhotoCleanupPaths(checkpoint))
+        }
         check(database.backupImportCheckpointDao().delete() == 1) {
             "Backup import checkpoint disappeared before cleanup"
         }
@@ -212,7 +265,25 @@ class RoomBackupImportGateway internal constructor(
 }
 
 internal class BackupImportCheckpointCodec(private val gson: Gson = Gson()) {
-    fun encodeSettings(value: PortableProfileSettings): String = gson.toJson(value)
+    fun encodeSettings(value: PortableProfileSettings, photoCleanupPaths: Set<String> = emptySet()): String {
+        val json = gson.toJsonTree(value).asJsonObject
+        if (photoCleanupPaths.isNotEmpty()) json.add("backupPhotoCleanupPaths", gson.toJsonTree(photoCleanupPaths.sorted()))
+        return gson.toJson(json)
+    }
+
+    fun decodePhotoCleanupPaths(checkpoint: BackupImportCheckpointEntity): Set<String> {
+        // Historical rollback layouts have no photo journal and may have an unrelated target value.
+        if (checkpoint.phase != BackupImportCheckpointEntity.PHASE_TARGET_APPLIED || !checkpoint.operationId.isUuid()) {
+            return emptySet()
+        }
+        val json = JsonParser.parseString(checkpoint.targetSettingsJson).asJsonObject
+        val paths = json.get("backupPhotoCleanupPaths") ?: return emptySet()
+        require(paths.isJsonArray) { "Invalid backup photo cleanup checkpoint" }
+        return paths.asJsonArray.mapTo(linkedSetOf()) { path ->
+            require(path.isJsonPrimitive && path.asJsonPrimitive.isString) { "Invalid backup photo cleanup path" }
+            path.asString.also { com.palixander.weightogether.domain.validateManagedProfilePhotoPath(it) }
+        }
+    }
 
     fun decodeSettings(value: String): PortableProfileSettings =
         gson.fromJson(value, PortableProfileSettings::class.java)
@@ -268,7 +339,8 @@ internal class BackupImportCheckpointCodec(private val gson: Gson = Gson()) {
         return optionalString("scaleAddress") &&
             optionalString("scaleName") &&
             optionalStringArray("selectedChartMetricKeys") &&
-            optionalStringArray("homeKgChartSeriesKeys")
+            optionalStringArray("homeKgChartSeriesKeys") &&
+            optionalStringArray("backupPhotoCleanupPaths")
     }
 
     private fun JsonObject.optionalString(name: String): Boolean =
@@ -405,10 +477,39 @@ class BackupImportService(
     private val byteLimit: Int = MAX_BACKUP_BYTES,
     private val breedSnapshotResult: BreedReferenceSnapshotLoadResult =
         BreedReferenceSnapshot.bundledOrUnavailable(),
+    private val archiveCodec: BackupArchiveCodec? = null,
 ) {
     init { require(byteLimit > 0) }
 
     fun read(input: InputStream): BackupDocumentV1 = codec.decode(readBackupJson(input, byteLimit))
+
+    /** Content detection complements the UI's extension allowlist; filenames are never trusted. */
+    fun readSource(input: InputStream): BackupImportSource {
+        val source = PushbackInputStream(input, 4)
+        val header = ByteArray(4)
+        var size = 0
+        while (size < header.size) {
+            val count = source.read(header, size, header.size - size)
+            if (count < 0) break
+            size += count
+        }
+        source.unread(header, 0, size)
+        return if (size >= 2 && header[0] == 0x50.toByte() && header[1] == 0x4b.toByte()) {
+            (archiveCodec ?: throw BackupException.Invalid("archive", "archive storage unavailable")).read(source)
+        } else {
+            BackupImportSource(read(source))
+        }
+    }
+
+    fun preview(
+        source: BackupImportSource,
+        current: BackupDatabaseSnapshot,
+        currentSettings: VersionedPortableProfileSettings,
+        mode: BackupImportMode,
+    ): BackupImportPreview {
+        source.requireOpen()
+        return preview(source.document, current, currentSettings, mode).copy(source = source)
+    }
 
     fun preview(
         input: InputStream,

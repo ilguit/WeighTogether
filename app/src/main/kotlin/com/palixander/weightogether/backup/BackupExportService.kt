@@ -13,6 +13,11 @@ import com.palixander.weightogether.data.PortableProfileSettings
 import com.palixander.weightogether.data.SyncStatus
 import com.palixander.weightogether.data.WeighingReminderScheduleEntity
 import com.palixander.weightogether.domain.ExternalSyncPolicy
+import com.palixander.weightogether.data.ProfilePhotoReferenceCoordinator
+import com.palixander.weightogether.profile.ProfilePhotoOwner
+import com.palixander.weightogether.profile.ProfilePhotoOwnerType
+import com.palixander.weightogether.profile.ProfilePhotoStore
+import java.io.File
 import java.io.IOException
 import java.io.OutputStream
 import java.time.Clock
@@ -51,9 +56,16 @@ class BackupExportService(
     private val settingsSnapshot: () -> PortableProfileSettings,
     private val codec: BackupJsonCodec = BackupJsonCodec(),
     private val clock: Clock = Clock.systemUTC(),
+    private val archiveCodec: BackupArchiveCodec = BackupArchiveCodec(File(System.getProperty("java.io.tmpdir"), "backup-staging")),
+    private val photoStore: ProfilePhotoStore? = null,
+    private val photoReferences: ProfilePhotoReferenceCoordinator? = null,
 ) {
     suspend fun createDocument(): BackupDocumentV1 {
         val database = snapshotSource.readSnapshot()
+        return createDocument(database)
+    }
+
+    private fun createDocument(database: BackupDatabaseSnapshot): BackupDocumentV1 {
         val settings = settingsSnapshot()
         return BackupDocumentV1(
             exportedAt = Instant.now(clock).toString(),
@@ -67,16 +79,36 @@ class BackupExportService(
         )
     }
 
-    /** Writes UTF-8 JSON and leaves ownership (and closing) of the SAF stream to the caller. */
+    /** Writes a .wtrn ZIP archive; the caller owns the SAF stream. */
     suspend fun writeTo(output: OutputStream): BackupDocumentV1 {
-        val document = createDocument()
+        suspend fun capture(): BackupImportSource {
+            val snapshot = snapshotSource.readSnapshot()
+            val document = createDocument(snapshot)
+            val files = buildMap {
+                snapshot.accounts.forEach { account ->
+                    account.photoPath?.let { path ->
+                        val store = photoStore ?: throw BackupException.Invalid("photos", "photo storage unavailable")
+                        put(ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, account.id), store.resolve(path))
+                    }
+                }
+                snapshot.pets.forEach { pet ->
+                    pet.photoPath?.let { path ->
+                        val store = photoStore ?: throw BackupException.Invalid("photos", "photo storage unavailable")
+                        put(ProfilePhotoOwner(ProfilePhotoOwnerType.PET, pet.id), store.resolve(path))
+                    }
+                }
+            }
+            return archiveCodec.snapshot(document, files)
+        }
         try {
-            output.write(codec.encode(document).toByteArray(Charsets.UTF_8))
-            output.flush()
+            val source = photoReferences?.withStableReferences { capture() } ?: capture()
+            return source.use {
+                archiveCodec.write(it, output)
+                it.document
+            }
         } catch (error: IOException) {
             throw BackupException.Io(error)
         }
-        return document
     }
 }
 
